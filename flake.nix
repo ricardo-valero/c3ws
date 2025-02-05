@@ -2,7 +2,11 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
-  outputs = {nixpkgs, ...}: let
+  outputs = {
+    nixpkgs,
+    self,
+    ...
+  }: let
     systems = nixpkgs.lib.systems.flakeExposed;
   in {
     formatter = nixpkgs.lib.genAttrs systems (
@@ -11,19 +15,22 @@
       in
         pkgs.alejandra
     );
+    packages = nixpkgs.lib.genAttrs systems (
+      system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        c3c = pkgs.callPackage ./nix/c3c.nix {};
+        c3-lsp = pkgs.callPackage ./nix/c3-lsp.nix {};
+      in {inherit c3c c3-lsp;}
+    );
     devShells = nixpkgs.lib.genAttrs systems (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-        config = {permittedInsecurePackages = ["python-2.7.18.8"];};
-      };
-      # pkgs = nixpkgs.legacyPackages.${system};
-      c3c = pkgs.callPackage ./nix/c3c.nix {};
-      autobahntestsuite = pkgs.callPackage ./nix/abts.nix {};
+      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs-self = self.packages.${system};
     in {
       default = pkgs.mkShell {
-        packages =
-          builtins.attrValues {inherit (pkgs) nixd nil alejandra;}
-          ++ [autobahntestsuite c3c];
+        packages = builtins.attrValues {
+          inherit (pkgs) nixd nil alejandra;
+          inherit (pkgs-self) c3c c3-lsp;
+        };
       };
     });
   };
