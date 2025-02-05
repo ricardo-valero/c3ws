@@ -1,3 +1,4 @@
 reports*/
 scraps/
 build/
+.direnv/
